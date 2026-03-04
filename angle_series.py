@@ -7,7 +7,7 @@ from matplotlib.widgets import SpanSelector
 from pathlib import Path
 
 # adjust this path if necessary or prompt user
-DATA_FOLDER = r"C:\Users\julia\Desktop\S839"
+DATA_FOLDER = r"C:\Users\julia\Desktop\Jagg_Heterostructures\D13\Low_Temperature\S2757"
 
 
 def list_data_files(folder):
@@ -109,6 +109,7 @@ def main():
     # Left: spectrum with span selector
     ax_spectrum = fig.add_subplot(121)
     ax_spectrum.plot(energies_ref, intensity_ref, 'b-')
+    ax_spectrum.set_xlim(np.nanmin(energies_ref), np.nanmax(energies_ref))
     ax_spectrum.set_xlabel('Energy (meV)')
     ax_spectrum.set_ylabel('Intensity')
     ax_spectrum.set_title(f'Select Integration Interval\n({first_file})')
