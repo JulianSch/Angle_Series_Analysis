@@ -7,7 +7,7 @@ from matplotlib.widgets import SpanSelector
 from pathlib import Path
 
 # adjust this path if necessary or prompt user
-DATA_FOLDER = r"C:\Users\julia\Desktop\Jagg_Heterostructures\D13\Low_Temperature\S2757"
+DATA_FOLDER = r"C:\Users\julia\Desktop\S616"
 
 
 def list_data_files(folder):
@@ -62,10 +62,14 @@ def main():
     parser.add_argument("-b", "--background",
                         type=float, default=0.0,
                         help="constant background intensity to subtract from each spectrum")
+    parser.add_argument("-n", "--no-normalize",
+                        action="store_true",
+                        help="do not normalize integrated intensities by the maximum value")
     args = parser.parse_args()
 
     folder = Path(args.data_folder)
     background = args.background
+    normalize = not args.no_normalize
 
     if not folder.exists():
         print(f"Data folder does not exist: {folder}")
@@ -119,7 +123,7 @@ def main():
     ax_polar = fig.add_subplot(122, projection='polar')
     
     # Initialize span selector state
-    state = {'start': None, 'end': None, 'polar_line': None}
+    state = {'start': None, 'end': None, 'polar_line': None, 'angles_sorted': None, 'norm_sorted': None}
     
     def on_select(xmin, xmax):
         """Callback when user selects span on spectrum."""
@@ -138,19 +142,26 @@ def main():
         # Take absolute value of integrated intensities (for polar plot)
         integrated = np.abs(integrated)
         
-        # Normalize by dividing by the maximum of the integrated intensities
-        max_integrated = integrated.max()
-        if integrated.size and max_integrated > 0:
-            norm = integrated / max_integrated
+        # Normalize by dividing by the maximum of the integrated intensities (optional)
+        if normalize:
+            max_integrated = integrated.max()
+            if integrated.size and max_integrated > 0:
+                data_to_plot = integrated / max_integrated
+            else:
+                # all values zero or empty – just use zeros
+                data_to_plot = np.zeros_like(integrated)
         else:
-            # all values zero or empty – just use zeros
-            norm = np.zeros_like(integrated)
+            data_to_plot = integrated
         
         # Sort by angle for plotting
         angles_array = np.array(angles)
         order = np.argsort(angles_array)
         angles_sorted = angles_array[order]
-        norm_sorted = norm[order]
+        norm_sorted = data_to_plot[order]
+        
+        # Store sorted data for later CSV saving
+        state['angles_sorted'] = angles_sorted
+        state['norm_sorted'] = norm_sorted
         
         # Convert to radians
         theta = np.deg2rad(angles_sorted)
@@ -179,6 +190,13 @@ def main():
         save_path = output_folder / f"polar_{int(start)}_{int(end)}meV.png"
         fig.savefig(save_path, dpi=150)
         print(f"Polar plot saved to {save_path}")
+        
+        # Save data to CSV
+        csv_path = output_folder / f"polar_{int(start)}_{int(end)}meV.csv"
+        if state['angles_sorted'] is not None and state['norm_sorted'] is not None:
+            data_to_save = np.column_stack((state['angles_sorted'], state['norm_sorted']))
+            np.savetxt(csv_path, data_to_save, delimiter=',', header='Angle (degrees),Normalized Intensity', comments='')
+            print(f"Polar plot data saved to {csv_path}")
 
 
 if __name__ == '__main__':
