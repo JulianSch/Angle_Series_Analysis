@@ -7,7 +7,7 @@ from matplotlib.widgets import SpanSelector
 from pathlib import Path
 
 # adjust this path if necessary or prompt user
-DATA_FOLDER = r"C:\Users\julia\Desktop\Scan02_good_data"
+DATA_FOLDER = r"C:\Users\julia\Desktop\Bachelorarbeit_Luka\Rohdaten\2020420_B03_without_top_hBN_PL_WL\Angle_Series_532nm_Scan02\S198"
 
 def list_data_files(folder):
     """Return sorted list of .dat files in folder."""
@@ -49,13 +49,13 @@ def main():
     )
     parser.add_argument("-d", "--data-folder", type=str, default=DATA_FOLDER, help="path to folder containing .dat spectra")
     parser.add_argument("-b", "--background", type=float, default=0.0, help="constant background intensity to subtract from each spectrum")
-    parser.add_argument("-n", "--no-normalize", action="store_true", help="do not normalize integrated intensities by the maximum value")
+    parser.add_argument("-normalize", "--normalize", action="store_true", help="normalize integrated intensities by the maximum value")
     parser.add_argument("--differentiate", action="store_true", help="use differentiated spectra for integration")
     args = parser.parse_args()
 
     folder = Path(args.data_folder)
     background = args.background
-    normalize = not args.no_normalize
+    normalize = args.normalize
 
     if not folder.exists():
         print(f"Data folder does not exist: {folder}")
@@ -139,7 +139,7 @@ def main():
         integrated = np.array(integrated)
         integrated = np.abs(integrated)
 
-        # Normalize
+        # Normalize if requested
         if normalize:
             max_integrated = integrated.max()
             if integrated.size and max_integrated > 0:
@@ -165,7 +165,8 @@ def main():
         ax_polar.clear()
         ax_polar.plot(theta, norm_sorted, marker='o', markersize=6)
         plot_title = "Differentiated" if args.differentiate else "Raw"
-        ax_polar.set_title(f"{plot_title} Normalized Intensity\n({xmin:.2f}-{xmax:.2f} meV)")
+        intensity_label = "Normalized Intensity" if normalize else "Integrated Intensity"
+        ax_polar.set_title(f"{plot_title} {intensity_label}\n({xmin:.2f}-{xmax:.2f} meV)")
         fig.canvas.draw_idle()
 
     # Create span selector on spectrum
@@ -192,7 +193,8 @@ def main():
         csv_path = output_folder / f"polar_{plot_title}_{int(start)}_{int(end)}meV.csv"
         if state['angles_sorted'] is not None and state['norm_sorted'] is not None:
             data_to_save = np.column_stack((state['angles_sorted'], state['norm_sorted']))
-            np.savetxt(csv_path, data_to_save, delimiter=',', header='Angle (degrees),Normalized Intensity', comments='')
+            csv_header = 'Angle (degrees),Normalized Intensity' if normalize else 'Angle (degrees),Integrated Intensity'
+            np.savetxt(csv_path, data_to_save, delimiter=',', header=csv_header, comments='')
             print(f"Polar plot data saved to {csv_path}")
 
 if __name__ == '__main__':
