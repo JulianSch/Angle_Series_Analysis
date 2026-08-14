@@ -9,7 +9,7 @@ from matplotlib.widgets import SpanSelector
 from pathlib import Path
 
 # adjust this path if necessary or prompt user
-DATA_FOLDER = r"C:\Users\julia\Desktop\20260727_p01\1518\Polarization\Excitation_Sweep"
+DATA_FOLDER = r"C:\Users\julia\Desktop\20260727_p01\1518\Polarization\Detection_Sweep_at_160deg-exc"
 
 # eV*nm, times 1000 for meV
 _EV_NM = 1239.84193
@@ -185,6 +185,16 @@ def integrate_interval(energies, intensity, start, end):
     return np.trapezoid(intensity[mask], energies[mask])
 
 
+def calculate_degree_of_polarization(intensities):
+    """Calculate degree of polarization from intensity data."""
+    if len(intensities) == 0 or np.max(intensities) + np.min(intensities) == 0:
+        return 0.0
+    i_max = np.max(intensities)
+    i_min = np.min(intensities)
+    dop = (i_max - i_min) / (i_max + i_min)
+    return dop
+
+
 def main():
     parser = argparse.ArgumentParser(
         description="Load SPE spectra, integrate over a selected energy interval, and display the angle dependence on a polar plot."
@@ -265,7 +275,7 @@ def main():
     ax_polar = fig.add_subplot(133, projection='polar')
 
     # Initialize span selector state
-    state = {'start': None, 'end': None, 'polar_line': None, 'angles_sorted': None, 'norm_sorted': None}
+    state = {'start': None, 'end': None, 'polar_line': None, 'angles_sorted': None, 'norm_sorted': None, 'dop': None}
 
     def on_select(xmin, xmax):
         """Callback when user selects span on spectrum."""
@@ -305,6 +315,10 @@ def main():
         state['angles_sorted'] = angles_sorted
         state['norm_sorted'] = norm_sorted
 
+        # Calculate degree of polarization
+        dop = calculate_degree_of_polarization(norm_sorted)
+        state['dop'] = dop
+
         # Convert to radians
         theta = np.deg2rad(angles_sorted)
 
@@ -313,8 +327,13 @@ def main():
         ax_polar.plot(theta, norm_sorted, marker='o', markersize=6)
         plot_title = "Differentiated" if args.differentiate else "Raw"
         intensity_label = "Normalized Intensity" if normalize else "Integrated Intensity"
-        ax_polar.set_title(f"{plot_title} {intensity_label}\n({xmin:.2f}-{xmax:.2f} meV)")
+        ax_polar.set_title(f"{plot_title} {intensity_label}\n({xmin:.2f}-{xmax:.2f} meV)\nDOP: {dop:.4f}")
         fig.canvas.draw_idle()
+
+        # Print to console
+        print(f"\nEnergy interval: {xmin:.2f}-{xmax:.2f} meV")
+        print(f"Degree of Polarization (DOP): {dop:.4f}")
+        print(f"Max intensity: {np.max(norm_sorted):.6f}, Min intensity: {np.min(norm_sorted):.6f}")
 
     # Create span selector on spectrum
     span = SpanSelector(
@@ -343,6 +362,11 @@ def main():
             csv_header = 'Angle (degrees),Normalized Intensity' if normalize else 'Angle (degrees),Integrated Intensity'
             np.savetxt(csv_path, data_to_save, delimiter=',', header=csv_header, comments='')
             print(f"Polar plot data saved to {csv_path}")
+
+        # Print DOP summary
+        if state['dop'] is not None:
+            print(f"\nSummary:")
+            print(f"  Degree of Polarization (DOP): {state['dop']:.4f}")
 
 if __name__ == '__main__':
     main()
